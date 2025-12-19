@@ -1,8 +1,11 @@
 import logging
 import re
 import time
+
 import pytest
-from playwright.sync_api import sync_playwright, Page, expect, TimeoutError as PwTimeoutError
+from playwright.sync_api import Page
+from playwright.sync_api import TimeoutError as PwTimeoutError
+from playwright.sync_api import expect, sync_playwright
 
 HOME_URL = "https://fpftech.com/"
 CASES_URL = "https://fpftech.com/cases-de-sucesso/"
@@ -20,6 +23,7 @@ RE_CASES = re.compile(r"cases\s+de\s+sucesso", re.I)
 # ============================
 # Logger
 # ============================
+
 
 class FPFLogger:
     @staticmethod
@@ -58,6 +62,7 @@ def tlog(request) -> FPFLogger:
 # ============================
 # Fixtures Playwright
 # ============================
+
 
 @pytest.fixture(scope="session")
 def pw():
@@ -98,6 +103,7 @@ def page(browser) -> Page:  # type: ignore
 # Helpers
 # ============================
 
+
 def norm(s: str) -> str:
     return RE_SPACES.sub(" ", (s or "").strip())
 
@@ -106,7 +112,9 @@ def goto(page: Page, url: str, *, wait: str = "domcontentloaded") -> None:
     page.goto(url, wait_until=wait)
 
 
-def click_or_goto(locator, fallback_url: str, page: Page, timeout_ms: int = 3000) -> None:
+def click_or_goto(
+    locator, fallback_url: str, page: Page, timeout_ms: int = 3000
+) -> None:
     href = None
     try:
         href = locator.get_attribute("href")
@@ -128,8 +136,8 @@ def click_or_goto(locator, fallback_url: str, page: Page, timeout_ms: int = 3000
 # 0001 - Cases
 # ============================
 
+
 def open_cases_page(page: Page) -> None:
-    # abre home rápido
     goto(page, HOME_URL, wait="domcontentloaded")
 
     link = page.get_by_role("link", name=RE_CASES).first
@@ -138,17 +146,14 @@ def open_cases_page(page: Page) -> None:
         try:
             link.scroll_into_view_if_needed()
 
-            # clique "rápido" (não deixa o Playwright tentar 30s na HOME)
             try:
                 link.click(timeout=2500, no_wait_after=True)
             except PwTimeoutError:
                 link.click(timeout=2500, force=True, no_wait_after=True)
 
-            # espera a URL mudar (bem mais confiável que networkidle)
             try:
                 page.wait_for_url(re.compile(r".*/cases-de-sucesso/?"), timeout=8000)
             except Exception:
-                # se não navegou, vai direto
                 goto(page, CASES_URL, wait="domcontentloaded")
 
         except Exception:
@@ -156,7 +161,6 @@ def open_cases_page(page: Page) -> None:
     else:
         goto(page, CASES_URL, wait="domcontentloaded")
 
-    # valida que chegou
     expect(page.get_by_role("heading", name=RE_CASES)).to_be_visible(timeout=15000)
 
 
@@ -173,12 +177,18 @@ def pick_selectors(page: Page) -> tuple[str, str]:
         ".elementor-post__title",
         "article h3",
     ]
-    card_sel = next((s for s in card_candidates if page.locator(s).count() > 0), "article")
-    title_sel = next((s for s in title_candidates if page.locator(s).count() > 0), "article h3")
+    card_sel = next(
+        (s for s in card_candidates if page.locator(s).count() > 0), "article"
+    )
+    title_sel = next(
+        (s for s in title_candidates if page.locator(s).count() > 0), "article h3"
+    )
     return card_sel, title_sel
 
 
-def click_load_more_until_end(page: Page, card_selector: str, max_clicks: int = 50) -> None:
+def click_load_more_until_end(
+    page: Page, card_selector: str, max_clicks: int = 50
+) -> None:
     load_more = page.get_by_role("button", name=re.compile(r"carregar\s+mais", re.I))
 
     for _ in range(max_clicks):
@@ -229,12 +239,15 @@ def log_titles(tlog: FPFLogger, titles: list[str]) -> None:
 # 0002 - Contato
 # ============================
 
+
 def open_contact_page_via_fale_com_a_gente(page: Page) -> None:
     goto(page, HOME_URL)
 
-    btn_talk = page.locator("a[href*='/contato/']").filter(
-        has_text=re.compile(r"fale\s+com\s+a\s+gente", re.I)
-    ).first
+    btn_talk = (
+        page.locator("a[href*='/contato/']")
+        .filter(has_text=re.compile(r"fale\s+com\s+a\s+gente", re.I))
+        .first
+    )
 
     if btn_talk.count() > 0:
         try:
@@ -247,7 +260,9 @@ def open_contact_page_via_fale_com_a_gente(page: Page) -> None:
     else:
         page.goto(CONTACT_URL, wait_until="networkidle")
 
-    expect(page.get_by_role("heading", name=re.compile(r"fale\s+com\s+a\s+fpftech", re.I))).to_be_visible(timeout=15000)
+    expect(
+        page.get_by_role("heading", name=re.compile(r"fale\s+com\s+a\s+fpftech", re.I))
+    ).to_be_visible(timeout=15000)
 
 
 def fill_contact_form_without_submit(
@@ -268,7 +283,9 @@ def fill_contact_form_without_submit(
     ).first
     msg.fill(mensagem)
 
-    expect(page.get_by_role("button", name=re.compile(r"enviar", re.I))).to_be_visible(timeout=15000)
+    expect(page.get_by_role("button", name=re.compile(r"enviar", re.I))).to_be_visible(
+        timeout=15000
+    )
 
 
 def extract_contact_info_from_sections(page: Page) -> dict:
@@ -306,12 +323,18 @@ def extract_contact_info_from_sections(page: Page) -> dict:
     cont_text = container_text(h_cont)
     combined = f"{onde_text}\n{cont_text}"
 
-    emails = sorted(set(re.findall(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", combined, flags=re.I)))
-    phones = sorted(set(re.findall(r"(?:\+\s*\d{1,3}\s*)?\(?\d{2}\)?\s*\d{4,5}\s*\d{4}", combined)))
+    emails = sorted(
+        set(re.findall(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", combined, flags=re.I))
+    )
+    phones = sorted(
+        set(re.findall(r"(?:\+\s*\d{1,3}\s*)?\(?\d{2}\)?\s*\d{4,5}\s*\d{4}", combined))
+    )
 
     address = None
     for ln in [x.strip() for x in onde_text.splitlines() if x.strip()]:
-        if ("Av." in ln or "Avenida" in ln or "Governador" in ln) and ("Manaus" in ln or "AM" in ln or "CEP" in ln):
+        if ("Av." in ln or "Avenida" in ln or "Governador" in ln) and (
+            "Manaus" in ln or "AM" in ln or "CEP" in ln
+        ):
             address = ln
             break
     if not address:
@@ -350,6 +373,7 @@ def log_contact_info(tlog: FPFLogger, info: dict) -> None:
 # 0003 - Carrossel da home
 # ============================
 
+
 def open_home_page(page: Page) -> None:
     goto(page, HOME_URL, wait="domcontentloaded")
     page.wait_for_load_state("networkidle")
@@ -362,7 +386,8 @@ def _get_main_carousel(page: Page):
     carousel = page.locator(
         ".e-n-carousel",
         has_text=re.compile(
-            r"Educação|Gestão\s+corporativa|Compromisso\s+social|Tecnologias\s+assistivas", re.I
+            r"Educação|Gestão\s+corporativa|Compromisso\s+social|Tecnologias\s+assistivas",
+            re.I,
         ),
     ).first
 
@@ -375,9 +400,13 @@ def _get_main_carousel(page: Page):
 
 def _get_carousel_widget_scope(page: Page):
     carousel = _get_main_carousel(page)
-    scope = carousel.locator("xpath=ancestor::*[contains(@class,'elementor-widget-container')][1]")
+    scope = carousel.locator(
+        "xpath=ancestor::*[contains(@class,'elementor-widget-container')][1]"
+    )
     if scope.count() == 0:
-        scope = carousel.locator("xpath=ancestor::*[contains(@class,'elementor-widget')][1]")
+        scope = carousel.locator(
+            "xpath=ancestor::*[contains(@class,'elementor-widget')][1]"
+        )
     expect(scope).to_be_visible(timeout=20000)
     return scope
 
@@ -466,6 +495,7 @@ def log_carousel_titles(tlog: FPFLogger, titles: list[str]) -> None:
 # 0004 - Notícias (busca)
 # ============================
 
+
 def open_news_page_via_menu(page: Page) -> None:
     if page.url == "about:blank" or "fpftech.com" not in page.url:
         goto(page, HOME_URL)
@@ -524,7 +554,9 @@ def search_news_and_collect_titles(page: Page, query: str) -> list[str]:
             except Exception:
                 pass
 
-        raw = page.locator("article h2, article h3, .elementor-post__title, .entry-title").all_text_contents()
+        raw = page.locator(
+            "article h2, article h3, .elementor-post__title, .entry-title"
+        ).all_text_contents()
         clean = [norm(t) for t in raw if norm(t) and len(norm(t)) > 3]
         return clean
 

@@ -1,5 +1,7 @@
 from playwright.sync_api import Page
+
 from conftest import *
+
 
 def test_0001(page: Page, tlog):
     open_cases_page(page)
@@ -31,9 +33,9 @@ def test_0002(page: Page, tlog):
     info = extract_contact_info_from_sections(page)
     log_contact_info(tlog, info)
 
-    assert info["emails"] or info["phones"] or info["address"], (
-        "Não conseguiu extrair dados de contato das seções"
-    )
+    assert (
+        info["emails"] or info["phones"] or info["address"]
+    ), "Não conseguiu extrair dados de contato das seções"
 
 
 def test_0003(page: Page, tlog):
